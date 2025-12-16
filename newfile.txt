@@ -1,0 +1,31 @@
+GTC numerical equilibrium model #3
+[59, 199]
+[0.39434104059]
+[14, 10]
+VMEC DIMENSION READ:
+lsp= 59 lst= 200 ndim_total= 14 psiw= 0.39434104059
+In zeta out system: sgn(psip)= 1 torpsi(1,lsp)= 0.52110496226 gpsi(1,1)= -9.9709337823 fielddir= 0
+Using VMEC: R0= 3.7714228069050004 B0= 2.637291397335 ndim= 14
+Completed mapping to boozer coordinates
+begin constructing spline
+Completed mapping to boozer coordinates
+begin constructing spline
+Completed mapping to boozer coordinates
+begin constructing spline
+Completed mapping to boozer coordinates
+begin constructing spline
+Execution time: 8390.32 seconds
+/opt/anaconda3/lib/python3.7/site-packages/joblib/externals/loky/backend/resource_tracker.py:304: UserWarning: resource_tracker: /dev/shm/joblib_memmapping_folder_65173_bf012cca80904964a170c3e5bdb599ff_b1fb7e2afe7c4a818f81f0ac05bc17c4/65173-139818534739664-37c31d0cf64b4caa84d98abff027e595.pkl: FileNotFoundError(2, 'No such file or directory')
+  'resource_tracker: %s: %r' % (name, e))
+/opt/anaconda3/lib/python3.7/site-packages/joblib/externals/loky/backend/resource_tracker.py:304: UserWarning: resource_tracker: /dev/shm/joblib_memmapping_folder_65173_bf012cca80904964a170c3e5bdb599ff_b1fb7e2afe7c4a818f81f0ac05bc17c4/65173-139818534739664-04b982d1254041d2b39a062c12f8f6c0.pkl: FileNotFoundError(2, 'No such file or directory')
+  'resource_tracker: %s: %r' % (name, e))
+/opt/anaconda3/lib/python3.7/site-packages/joblib/externals/loky/backend/resource_tracker.py:304: UserWarning: resource_tracker: /dev/shm/joblib_memmapping_folder_65173_bf012cca80904964a170c3e5bdb599ff_b1fb7e2afe7c4a818f81f0ac05bc17c4/65173-139818534739664-79f7b6bbf4e64be68b7ea28db64891a7.pkl: FileNotFoundError(2, 'No such file or directory')
+  'resource_tracker: %s: %r' % (name, e))
+/opt/anaconda3/lib/python3.7/site-packages/joblib/externals/loky/backend/resource_tracker.py:304: UserWarning: resource_tracker: /dev/shm/joblib_memmapping_folder_65173_bf012cca80904964a170c3e5bdb599ff_b1fb7e2afe7c4a818f81f0ac05bc17c4/65173-139818534739664-b974bc77de0e4bc2b17f6ad38b01cbd8.pkl: FileNotFoundError(2, 'No such file or directory')
+  'resource_tracker: %s: %r' % (name, e))
+/opt/anaconda3/lib/python3.7/site-packages/joblib/externals/loky/backend/resource_tracker.py:304: UserWarning: resource_tracker: /dev/shm/joblib_memmapping_folder_65173_bf012cca80904964a170c3e5bdb599ff_b1fb7e2afe7c4a818f81f0ac05bc17c4/65173-139818534739664-efcd9d97f581451a844c83a911b5b1e3.pkl: FileNotFoundError(2, 'No such file or directory')
+  'resource_tracker: %s: %r' % (name, e))
+/opt/anaconda3/lib/python3.7/site-packages/joblib/externals/loky/backend/resource_tracker.py:304: UserWarning: resource_tracker: /dev/shm/joblib_memmapping_folder_65173_bf012cca80904964a170c3e5bdb599ff_b1fb7e2afe7c4a818f81f0ac05bc17c4/65173-139818534739664-c8426ccada56430b882ac5963529df8b.pkl: FileNotFoundError(2, 'No such file or directory')
+  'resource_tracker: %s: %r' % (name, e))
+/opt/anaconda3/lib/python3.7/site-packages/joblib/externals/loky/backend/resource_tracker.py:304: UserWarning: resource_tracker: /dev/shm/joblib_memmapping_folder_65173_bf012cca80904964a170c3e5bdb599ff_b1fb7e2afe7c4a818f81f0ac05bc17c4/65173-139818534739664-fd9ef41cc6504e578e6eb9b1fde2d005.pkl: FileNotFoundError(2, 'No such file or directory')
+  'resource_tracker: %s: %r' % (name, e))
