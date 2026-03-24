@@ -19,6 +19,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.fftpack import fft,ifft,fft2
+import gtc
 
 def read(fname,nt=0): 
   """
@@ -314,3 +315,73 @@ def gammaOmega2(s2, tstep=1, dpsi=1, ymin=0, ymax=4, savefig=0):
     if savefig:
         fig.savefig("growthrate")
     return
+
+def compare_profile_vs_time(case_paths, ndstep,ndstart = 0, particletype=4, kind=0,
+                     psi_trim_low = 1, psi_trim_high = 5, title=None, figsize_per_row=4, dpi=120,
+                     shared_colorbar=True,fontsize=20, tstep = 0.00025):
+    """Compare radial profile evolution across multiple runs.
+
+    case_paths : list of str  — directories containing data1d.out / gtc.out0
+    ndstep     : int          — number of timesteps to read
+    particletype : int        — index into mpdata1d dimension (0=number, 1=energy, 2=momentum, …)
+    kind       : int          — 0=ion, 1=EP, 2=electron
+    psi_trim   : int          — number of edge grid points to trim on each side
+    title      : list of str or None  — subplot titles (one per case_path)
+    shared_colorbar : bool    — if True, all subplots share the same vmin/vmax
+    """
+    kind_names = ['ion', 'EP', 'electron']
+    ptype_names = ['number flux', 'energy flux', 'angular momentum flux', 'flux mesh', 'Er']
+
+    kind_label = kind_names[kind] if kind < len(kind_names) else f'kind {kind}'
+    ptype_label = ptype_names[particletype] if particletype < len(ptype_names) else f'data index {particletype}'
+
+    n = len(case_paths)
+    if title is None:
+        title = [f'{kind_label} {ptype_label}'] * n
+
+    # First pass: read data and find global vmin/vmax
+    datasets = []
+    radial_grids = []
+    global_vmin = float('inf')
+    global_vmax = float('-inf')
+    for case_path in case_paths:
+        (data1di, data1df, data1de, field00, fieldrms) = read(
+            case_path + "/data1d.out", nt=ndstep)
+        plot_data = data1di[ndstart:, psi_trim_low:-psi_trim_high, particletype]
+        (physical_parameters,radial_grid,radial_profile)=gtc.read(case_path+"/gtc.out0")
+        radial_grids.append(radial_grid)
+        datasets.append(plot_data)
+        if shared_colorbar:
+            global_vmin = min(global_vmin, plot_data.min())
+            global_vmax = max(global_vmax, plot_data.max())
+
+    # Second pass: plot with consistent color scale
+    fig, axes = plt.subplots(1, n, figsize=(8 * n + 3, 6), dpi=dpi, squeeze=False)
+
+    contour_kw = {}
+    if shared_colorbar:
+        levels = np.linspace(global_vmin, global_vmax, 41)
+        contour_kw = {'levels': levels}
+    else:
+        contour_kw = {'levels': 40}
+
+    for i, plot_data in enumerate(datasets):
+        ax = axes[0, i]
+        cf = ax.contourf(radial_grids[i][psi_trim_low-1:1-psi_trim_high,1],np.arange(ndstep-ndstart)*tstep,plot_data, 40, cmap='jet', **contour_kw)
+        ax.set(xlabel='$r/a$', ylabel='t $R_0/C_s$', title=title[i])
+        ax.xaxis.label.set_fontsize(fontsize)
+        ax.yaxis.label.set_fontsize(fontsize)
+        ax.title.set_fontsize(fontsize)
+        fig.colorbar(cf, ax=ax)
+        
+
+    fig.tight_layout()
+    plt.show()
+
+    for i, plot_data in enumerate(datasets):
+        plt.plot(radial_grids[i][psi_trim_low-1:1-psi_trim_high,1],plot_data[-1,:],label=title[i])
+    plt.legend(fontsize=fontsize)
+    plt.xlabel('r/a',fontsize=fontsize)
+    plt.ylabel('Er kV/m',fontsize=fontsize)
+    plt.show()
+    return fig,plt
