@@ -122,13 +122,13 @@ def particleshow(parthist, pdiag=0, species=0, savefig=0):
     elif pdiag==5:
         ax.set(xlabel='dstep', ylabel='',title='energy*deltaf')
     elif pdiag==6:
-        ax.set(xlabel='dstep', ylabel='',title='particle flux')
+        ax.set(xlabel='dstep', ylabel='',title=f'particle $f$ flux for {species}')
     elif pdiag==7:
-        ax.set(xlabel='dstep', ylabel='',title='momentum flux')
+        ax.set(xlabel='dstep', ylabel='',title=f'momentum flux for {species}')
     elif pdiag==8:
-        ax.set(xlabel='dstep', ylabel='',title='energy flux')
+        ax.set(xlabel='dstep', ylabel='',title=f'energy flux for {species}')
     elif pdiag==9:
-        ax.set(xlabel='dstep', ylabel='',title='out of bounds ratio')
+        ax.set(xlabel='dstep', ylabel='',title=f'out of bounds ratio for {species}')
     elif pdiag==10:
         ax.set(xlabel='dstep', ylabel='',title='real(mp)')
     

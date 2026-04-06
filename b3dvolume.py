@@ -18,7 +18,10 @@ start_time = time.time()
 #read stellarator data
 case_path = '/home/emgreen/simulations/stellarator/183281/uniform/no_Er/'
 fname="spdata.dat"
-(sgn,psiw,ped,spdtheta,spdpsi,lsp,lst,torpsi,qpsi,gpsi,cpsi,rpsi,torpsi,ntor,bcn,bsn,xcn,xsn,zcn,zsn,fcn,fsn,rpsi)=stl.read_spdata(case_path+fname,0,9)
+(sgn, psiw, ped, spdtheta, spdpsi, lsp, lst, torpsi, qpsi, gpsi, cpsi, rpsi,
+ ntor, bcn, bsn, xcn, xsn, zcn, zsn, fcn, fsn, ndim, ndim_total, r0, b0, nfp) = stl.read_spdata(
+    case_path + fname, 0, 9
+)
 
 #produce stellarator splines
 nzsp_sec=7

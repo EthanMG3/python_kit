@@ -19,8 +19,8 @@ def read_spdata(fname,noaxis=1,ndim=9):
     """
     # read spdata.dat for stellarator 
     
-    return(sgn,psiw,ped,spdtheta,spdpsi,lsp,lst,torpsi,qpsi,
-    gpsi,cpsi,rpsi,torpsi,ntor,bcn,bsn,xcn,xsn,zcn,zsn,fcn,fsn,rpsi)
+    return(sgn,psiw,ped,spdtheta,spdpsi,lsp,lst,torpsi,qpsi,gpsi,cpsi,
+    rpsi,ntor,bcn,bsn,xcn,xsn,zcn,zsn,fcn,fsn,ndim,ndim_total,r0,b0)  
     
     # data structure:
      bcn -> ((lsp, lst, ndim_total))
@@ -185,7 +185,7 @@ def read_spdata(fname,noaxis=1,ndim=9):
         zcn = zcn / x00
         zsn = zsn / x00
         rpsi = rpsi / x00
-        return(sgn,psiw,ped,spdtheta,spdpsi,lsp,lst,torpsi,qpsi,gpsi,cpsi,rpsi,ntor,bcn,bsn,xcn,xsn,zcn,zsn,fcn,fsn,ndim,ndim_total,r0,b0)  
+        return(sgn,psiw,ped,spdtheta,spdpsi,lsp,lst,torpsi,qpsi,gpsi,cpsi,rpsi,ntor,bcn,bsn,xcn,xsn,zcn,zsn,fcn,fsn,ndim,ndim_total,r0,b0,nfp)  
     
 def construct_3d_spline(sgn,psiw,ntor,lsp,lst,lszeta,toroidaln,ndim,noaxis,ndim_total,ycn,ysn,mk_spline=True):
     '''
@@ -254,7 +254,9 @@ class Stellarator:
          self.lsp, self.lst, self.torpsi, self.qpsi, self.gpsi,
          self.cpsi, self.rpsi, self.ntor, self.bcn, self.bsn,
          self.xcn, self.xsn, self.zcn, self.zsn, self.fcn, self.fsn,
-         self.ndim,self.ndim_total,self.r0,self.b0) = read_spdata(filepath, noaxis=noaxis, ndim=ndim)
+         self.ndim, self.ndim_total, self.r0, self.b0, self.nfp) = read_spdata(
+            filepath, noaxis=noaxis, ndim=ndim
+        )
 
         self.splines = {}
         # Optional spline construction
