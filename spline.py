@@ -92,9 +92,7 @@ def spline3d(x, y, z, deriv, nx, ny, nz, delx, dely, delz, f, bcx, bcy, bcz):
     dy = y - dely * j
     dz = z - delz * k
     
-    #dxinv = 1.0 / dx
-    #dyinv = 1.0 / dy
-    #dzinv = 1.0 / dz
+
 
     # Apply boundary condition (bcx, bcy, bcz) if needed
     if i == 0 and bcx == 1:
@@ -103,6 +101,10 @@ def spline3d(x, y, z, deriv, nx, ny, nz, delx, dely, delz, f, bcx, bcy, bcz):
         dy = np.sqrt(dy)
     if k == 0 and bcz == 1:
         dz = np.sqrt(dz)
+
+    #dxinv = 1.0 / dx
+    #dyinv = 1.0 / dy
+    #dzinv = 1.0 / dz
 
     # Initialize the spline vector
     dvec = np.zeros(27)

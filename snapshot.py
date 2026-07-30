@@ -58,7 +58,7 @@ def read(fname,kind=0):
     sect2=nvgrid*4*nspecies
     sect3=mtgrid*mpsi*(nfield+2)
     sect4=mtgrid*mtoroidal*nfield
-    sect5=nvgrid*nvgrid*2*nspecies
+    sect5=nvgrid*nvgrid*3*nspecies
     
     #print(sect1+sect2+sect3+sect4+sect5+7)
 
@@ -72,7 +72,7 @@ def read(fname,kind=0):
     pdf=np.zeros((nvgrid,4,nspecies),dtype=float)
     poloidata=np.zeros((mtgrid,mpsi,nfield+2),dtype=float)
     fluxdata=np.zeros((mtgrid,mtoroidal,nfield),dtype=float)
-    pdf2ddata=np.zeros((nvgrid,nvgrid,2,nspecies),dtype=float)
+    pdf2ddata=np.zeros((nvgrid,nvgrid,3,nspecies),dtype=float)
 
     ## this separates the files into the four sections as a series of float numbers
     if kind==0 or kind==1:
@@ -118,10 +118,10 @@ def read(fname,kind=0):
     
     if kind==0 or kind==5:    
         for i in range(0,nspecies):
-            for j in range(0,2):
+            for j in range(0,3):
                 for k in range(0,nvgrid):
                     for l in range(0,nvgrid):
-                        pdf2ddata[l,k,j,i]=pdf2ddataseries[l+k*nvgrid+(j*nvgrid*nvgrid)+(i*nvgrid*nvgrid*2)]
+                        pdf2ddata[l,k,j,i]=pdf2ddataseries[l+k*nvgrid+(j*nvgrid*nvgrid)+(i*nvgrid*nvgrid*3)]
                     
     if kind==0:
         return (profile, pdf, poloidata,fluxdata,pdf2ddata,nspecies,nfield,nvgrid,mpsi,mtgrid,mtoroidal,tmax)
@@ -135,8 +135,10 @@ def read(fname,kind=0):
         return (fluxdata,nspecies,nfield,nvgrid,mpsi,mtgrid,mtoroidal,tmax)
     elif kind==5:
         return (pdf2ddata,nspecies,nfield,nvgrid,mpsi,mtgrid,mtoroidal,tmax)
-  except:
+  except Exception as e:
     print("Something went wrong!")
+    import traceback
+    traceback.print_exc()
     return
 
 ###################################
@@ -154,33 +156,34 @@ def poloishow(poloidata, kind = 0, savefig = 0):
     """
     x = poloidata[:,:,3]
     y = poloidata[:,:,4]
+    levels = 80
     if kind==0:
         phi = poloidata[:,:,0]
         apara = poloidata[:,:,1]
         dene = poloidata[:,:,2]
         fig, sub = plt.subplots(1,3,figsize=(15,4), dpi = 120)
-        figphi = sub[0].contourf(x, y, phi, 40, cmap = 'jet')
+        figphi = sub[0].contourf(x, y, phi, levels, cmap = 'jet')
         sub[0].set(xlabel='R', ylabel='Z',title='phi')
-        figapara = sub[1].contourf(x, y, apara, 40, cmap = 'jet')
+        figapara = sub[1].contourf(x, y, apara, levels, cmap = 'jet')
         sub[1].set(xlabel='R', ylabel='Z',title='apara')
-        figdene = sub[2].contourf(x, y, dene, 40, cmap = 'jet')
+        figdene = sub[2].contourf(x, y, dene, levels, cmap = 'jet')
         sub[2].set(xlabel='R', ylabel='Z',title='dene')
     elif kind==1:
         phi = poloidata[:,:,0]
         fig, ax= plt.subplots(figsize=(5.2,4), dpi = 120)
-        figphi = ax.contourf(x,y,phi,40,cmap='jet')
+        figphi = ax.contourf(x,y,phi,levels,cmap='jet')
         ax.set(xlabel='R', ylabel='Z',title='phi')
         fig.colorbar(figphi)
     elif kind==2:
         apara = poloidata[:,:,1]
         fig, ax= plt.subplots(figsize=(5.2,4), dpi = 120)
-        figapara = ax.contourf(x,y,apara,40,cmap='jet')
+        figapara = ax.contourf(x,y,apara,levels,cmap='jet')
         ax.set(xlabel='R', ylabel='Z',title='apara')
         fig.colorbar(figapara)
     elif kind==3:
         dene = poloidata[:,:,2]
         fig, ax= plt.subplots(figsize=(5.2,4), dpi = 120)
-        figdene = ax.contourf(x,y,dene,40,cmap='jet')
+        figdene = ax.contourf(x,y,dene,levels,cmap='jet')
         ax.set(xlabel='R', ylabel='Z',title='dene')
         fig.colorbar(figdene)
         
@@ -299,13 +302,13 @@ def fluxshow(fluxdata, kind = 0, savefig = 0):
         fig.savefig("flux.png")
     return
 
-def pdf2dshow(pdf2d, kind = 0, species=0, T=1.0, emax_inv=0.2, lambmax_inv=0.8, savefig = 0):
+def pdf2dshow(pdf2d, kind = 0, nspecies=0, T=1.0, emax_inv=0.2, lambmax_inv=0.8, savefig = 0):
     """
     # kind =
         0: delta f**2 & full f(default)
         1: full f
         2: delta f**2
-    # species
+    # nspecies
         0: ion (default)
         if nhybrid>0 then nspecies+1, electron
         if fload>0 then nspecies+1, fast ion
@@ -319,19 +322,24 @@ def pdf2dshow(pdf2d, kind = 0, species=0, T=1.0, emax_inv=0.2, lambmax_inv=0.8, 
     lambdabin=np.arange(1,nvgrid+1)/nvgrid/lambmax_inv;
     if kind==0:
         fig, sub = plt.subplots(1,2,figsize=(10,4), dpi = 120)
-        fig1 = sub[0].contourf(energybin[:-1], lambdabin[:-1], pdf2d[:-1,:-1,0,species], 40, cmap = 'jet')
+        fig1 = sub[0].contourf(energybin[:-1], lambdabin[:-1], pdf2d[:-1,:-1,0,nspecies], 40, cmap = 'jet')
         sub[0].set(xlabel='energy', ylabel='$\lambda=\mu B_a/E$',title='full f')
-        fig2 = sub[1].contourf(energybin[:-1], lambdabin[:-1], pdf2d[:-1,:-1,1,species], 40, cmap = 'jet')
+        fig2 = sub[1].contourf(energybin[:-1], lambdabin[:-1], pdf2d[:-1,:-1,1,nspecies], 40, cmap = 'jet')
         sub[1].set(xlabel='energy', ylabel='$\lambda=\mu B_a/E$',title='$\delta f^2$')
     elif kind==1:
         fig, ax= plt.subplots(figsize=(5.2,4), dpi = 120)
-        fig1 = ax.contourf(energybin[:-1], lambdabin[:-1], pdf2d[:-1,:-1,0,species],40,cmap='jet')
+        fig1 = ax.contourf(energybin[:-1], lambdabin[:-1], pdf2d[:-1,:-1,0,nspecies],40,cmap='jet')
         ax.set(xlabel='energy', ylabel='$\lambda=\mu B_a/E$',title='full f')
         fig.colorbar(fig1)
     elif kind==2:
         fig, ax= plt.subplots(figsize=(5.2,4), dpi = 120)
-        fig2 = ax.contourf(energybin[:-1], lambdabin[:-1], pdf2d[:-1,:-1,1,species],40,cmap='jet')
+        fig2 = ax.contourf(energybin[:-1], lambdabin[:-1], pdf2d[:-1,:-1,1,nspecies],40,cmap='jet')
         ax.set(xlabel='energy', ylabel='$\lambda=\mu B_a/E$',title='$\delta f^2$')
+        fig.colorbar(fig2)
+    elif kind>2:
+        fig, ax= plt.subplots(figsize=(5.2,4), dpi = 120)
+        fig2 = ax.contourf(energybin[:-1], lambdabin[:-1], pdf2d[:-1,:-1,kind,nspecies],40,cmap='jet')
+        ax.set(xlabel='energy', ylabel='$\lambda=\mu B_a/E$',title='$full f$')
         fig.colorbar(fig2)
         
     if savefig:

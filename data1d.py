@@ -67,8 +67,10 @@ def read(fname,nt=0):
                 elif nhybrid>0:
                     data1deseries[j+i*sect1]=float(lines[7+j+i*(sect1*nspecies+sect2*2)+sect1])
             if nspecies==3:
-                data1dfseries[j+i*sect1]=float(lines[7+j+i*(sect1*nspecies+sect2*2)+sect1])
-                data1deseries[j+i*sect1]=float(lines[7+j+i*(sect1*nspecies+sect2*2)+sect1*2])
+                # diagnosis.F90 writes thermal ion, thermal electron, then
+                # fast ion. The previous reader interchanged the latter two.
+                data1deseries[j+i*sect1]=float(lines[7+j+i*(sect1*nspecies+sect2*2)+sect1])
+                data1dfseries[j+i*sect1]=float(lines[7+j+i*(sect1*nspecies+sect2*2)+sect1*2])
         
         for j in range(0,sect2):
             field00series[j+i*sect2]=float(lines[7+j+i*(sect1*nspecies+sect2*2)+sect1*nspecies])
@@ -91,9 +93,39 @@ def read(fname,nt=0):
                 fieldrms[i,k,j]=fieldrmsseries[k+j*mpsi+i*nfield*mpsi]
    
     return (data1di,data1df,data1de,field00,fieldrms)
+  except FileNotFoundError as error:
+    case_directory = fname.rsplit('/', 1)[0] if '/' in fname else '.'
+    raise FileNotFoundError(
+      f"data1d.read could not find '{fname}'. "
+      f"Check that the case directory exists and is spelled correctly: "
+      f"'{case_directory}'"
+    ) from error
   except:
     print("Something went wrong!")
     return
+
+
+def neoclassical_current_components(case_path, nt=0, diagnostic=3,
+                                     qion=1.0, qfast=1.0, qelectron=-1.0):
+    """Return species fluxes and their charge-weighted radial-current sum.
+
+    diagnostic=3 is the smoothed radial particle flux used by the Er solver.
+    For files produced with the extended diagnostics, indices 5:12 contain
+    the signed and raw fast-ion flux components.
+    """
+    data1di, data1df, data1de, _, _ = read(
+        case_path.rstrip('/') + '/data1d.out', nt=nt)
+    ion_flux = data1di[:, :, diagnostic]
+    fast_flux = data1df[:, :, diagnostic]
+    electron_flux = data1de[:, :, diagnostic]
+    return {
+        'thermal_ion': ion_flux,
+        'fast_ion': fast_flux,
+        'electron': electron_flux,
+        'total_current': (
+            qion * ion_flux + qfast * fast_flux + qelectron * electron_flux
+        ),
+    }
 
 
 def fieldshow(fielddata, fieldtype = 0, kind = 1, savefig = 0):
@@ -316,24 +348,35 @@ def gammaOmega2(s2, tstep=1, dpsi=1, ymin=0, ymax=4, savefig=0):
         fig.savefig("growthrate")
     return
 
-def compare_profile_vs_time(case_paths, ndstep,ndstart = 0, particletype=4, kind=0,
-                     psi_trim_low = 1, psi_trim_high = 5, title=None, figsize_per_row=4, dpi=120,
-                     shared_colorbar=True,fontsize=20, tstep = 0.00025):
+def compare_profile_vs_time(case_paths, ndstep,ndstart = 0, diagnostic=4, species=0,
+                     psi_trim_low = 0, psi_trim_high = 5, title=None, figsize_per_row=4, dpi=120,
+                     shared_colorbar=True,fontsize=20, tstep = 0.00025,levels = 40):
     """Compare radial profile evolution across multiple runs.
 
     case_paths : list of str  — directories containing data1d.out / gtc.out0
     ndstep     : int          — number of timesteps to read
     particletype : int        — index into mpdata1d dimension (0=number, 1=energy, 2=momentum, …)
-    kind       : int          — 0=ion, 1=EP, 2=electron
+    species    : int          — 0=ion, 1=EP, 2=electron
     psi_trim   : int          — number of edge grid points to trim on each side
     title      : list of str or None  — subplot titles (one per case_path)
     shared_colorbar : bool    — if True, all subplots share the same vmin/vmax
     """
     kind_names = ['ion', 'EP', 'electron']
-    ptype_names = ['number flux', 'energy flux', 'angular momentum flux', 'flux mesh', 'Er']
+    ptype_names = [
+        'number flux', 'energy flux', 'angular momentum flux',
+        'smoothed radial flux', 'Er',
+        'smoothed rkdot flux (upara >= 0)',
+        'smoothed rkdot flux (upara < 0)',
+        'smoothed analytic-vdr flux (upara >= 0)',
+        'smoothed analytic-vdr flux (upara < 0)',
+        'raw rkdot flux (upara >= 0)',
+        'raw rkdot flux (upara < 0)',
+        'raw analytic-vdr flux (upara >= 0)',
+        'raw analytic-vdr flux (upara < 0)',
+    ]
 
-    kind_label = kind_names[kind] if kind < len(kind_names) else f'kind {kind}'
-    ptype_label = ptype_names[particletype] if particletype < len(ptype_names) else f'data index {particletype}'
+    kind_label = kind_names[species] if species < len(kind_names) else f'kind {species}'
+    ptype_label = ptype_names[diagnostic] if diagnostic < len(ptype_names) else f'data index {diagnostic}'
 
     n = len(case_paths)
     if title is None:
@@ -347,7 +390,14 @@ def compare_profile_vs_time(case_paths, ndstep,ndstart = 0, particletype=4, kind
     for case_path in case_paths:
         (data1di, data1df, data1de, field00, fieldrms) = read(
             case_path + "/data1d.out", nt=ndstep)
-        plot_data = data1di[ndstart:, psi_trim_low:-psi_trim_high, particletype]
+        species_data = (data1di, data1df, data1de)
+        if species < 0 or species >= len(species_data):
+            raise ValueError("species must be 0 (ion), 1 (EP), or 2 (electron)")
+        # Er is a global field stored in the thermal-ion block. All other
+        # diagnostics select the requested species.
+        selected_data = data1di if diagnostic == 4 else species_data[species]
+        plot_data = selected_data[
+            ndstart:, psi_trim_low+1:-(2+psi_trim_high), diagnostic]
         (physical_parameters,radial_grid,radial_profile)=gtc.read(case_path+"/gtc.out0")
         radial_grids.append(radial_grid)
         datasets.append(plot_data)
@@ -360,14 +410,17 @@ def compare_profile_vs_time(case_paths, ndstep,ndstart = 0, particletype=4, kind
 
     contour_kw = {}
     if shared_colorbar:
-        levels = np.linspace(global_vmin, global_vmax, 41)
-        contour_kw = {'levels': levels}
+        shared_levels = np.linspace(global_vmin, global_vmax, levels+1)
+        contour_kw = {'levels': shared_levels}
     else:
-        contour_kw = {'levels': 40}
+        contour_kw = {'levels': levels}
 
     for i, plot_data in enumerate(datasets):
         ax = axes[0, i]
-        cf = ax.contourf(radial_grids[i][psi_trim_low-1:1-psi_trim_high,1],np.arange(ndstep-ndstart)*tstep,plot_data, 40, cmap='jet', **contour_kw)
+        cf = ax.contourf(
+            radial_grids[i][psi_trim_low:-(1+psi_trim_high),1],
+            np.arange(ndstep-ndstart)*tstep, plot_data,
+            cmap='jet', **contour_kw)
         ax.set(xlabel='$r/a$', ylabel='t $R_0/C_s$', title=title[i])
         ax.xaxis.label.set_fontsize(fontsize)
         ax.yaxis.label.set_fontsize(fontsize)
@@ -379,9 +432,10 @@ def compare_profile_vs_time(case_paths, ndstep,ndstart = 0, particletype=4, kind
     plt.show()
 
     for i, plot_data in enumerate(datasets):
-        plt.plot(radial_grids[i][psi_trim_low-1:1-psi_trim_high,1],plot_data[-1,:],label=title[i])
+        plt.plot(radial_grids[i][psi_trim_low:-(1+psi_trim_high),1],plot_data[-1,:],label=title[i])
     plt.legend(fontsize=fontsize)
     plt.xlabel('r/a',fontsize=fontsize)
-    plt.ylabel('Er kV/m',fontsize=fontsize)
+    ylabel = 'Er kV/m' if diagnostic == 4 else ptype_label
+    plt.ylabel(ylabel,fontsize=fontsize)
     plt.show()
     return fig,plt

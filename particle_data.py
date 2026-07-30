@@ -1,13 +1,17 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import dask
 import dask.dataframe as dd
+
+# parts*.out files are numeric; dask 2026 + pandas 3 default to pyarrow strings
+dask.config.set({"dataframe.convert-string": False})
 import equilibrium as Eq
 import stellarator as stl
 import spline as sp
 from matplotlib.gridspec import GridSpec
 
-def read_full_parts_dask(path,mpis,old11=False,directory='full_parts/'):
+def read_full_parts_dask(path,mpis,old11=False,directory='/full_parts/'):
     ''''reads in the particle data from the full_parts directory'''
     dfs = []
 
@@ -38,7 +42,7 @@ def clean_dask(dfs):
     
     #dfs = dfs[dfs['lambda_f'] >= -1]
     lost = dfs[dfs['marker_weight'] == 0]
-    kept = dfs[dfs['marker_weight'] == 1]
+    kept = dfs[dfs['marker_weight'] > 0]
 
     return dfs, lost, kept
 
@@ -54,7 +58,21 @@ def clean_dask_old11(dfs):
 
     return dfs, lost, kept
 
-def plot2d(x,xdiv,y,ydiv,d1, scalefactor = 1,ratio=1,kept = 0,nbins=200,ax = None,psiw=1,labels = 'natural',title = None,figsize= None,lables = True,clabels = True,old11=False):
+def _flux_axis_label(name):
+    """Return a matplotlib LaTeX axis label for a particle column name."""
+    if name in ('zeta_i', 'zeta_f'):
+        return r'$\zeta/2\pi$'
+    if name in ('theta_i', 'theta_f'):
+        return r'$\Theta/2\pi$'
+    if name in ('lambda_i', 'lambda_f'):
+        return r'$\lambda = \mu/E$'
+    if name in ('psi_i', 'psi_f'):
+        return r'$\psi$'
+    if name in ('E_i', 'E_f'):
+        return 'Energy keV'
+    return None
+
+def plot2d(x,xdiv,y,ydiv,d1, scalefactor = 1,ratio=1,kept = 0,nbins=200,ax = None,psiw=1,labels = 'natural',title = None,figsize= None,lables = True,clabels = True,fullf=False):
     df1 = d1[kept+1]
     if (ratio !=3):
         df_div1 = d1[0]
@@ -65,7 +83,7 @@ def plot2d(x,xdiv,y,ydiv,d1, scalefactor = 1,ratio=1,kept = 0,nbins=200,ax = Non
         counts_div1, xedges_1, yedges_1 = np.histogram2d(np.sqrt(df_div1[x]/psiw)*np.cos(df_div1[y]),np.sqrt(df_div1[x]/psiw)*np.sin(df_div1[y]),bins=nbins)   
         counts_1, _,_ = np.histogram2d(np.sqrt(df1[x]/psiw)*np.cos(df1[y]),np.sqrt(df1[x]/psiw)*np.sin(df1[y]), bins=[xedges_1, yedges_1]) # Use the same bins
     else:
-        if old11:
+        if fullf:
             if ratio == 0:
                 counts_1,xedges_1, yedges_1 = np.histogram2d(df1[x], df1[y], bins=nbins) # Use the same bins
             elif ratio ==2:
@@ -146,7 +164,7 @@ def plot2d(x,xdiv,y,ydiv,d1, scalefactor = 1,ratio=1,kept = 0,nbins=200,ax = Non
 
 def plotfluxsurface(x, xdiv, y, ydiv, d1, psi=None, dpsi=None, theta=None, dtheta=None, zeta=None, dzeta=None,E=None, dE=None,lamb=None, dlamb=None,
                     scalefactor=1, ratio=1, kept=0, nbins=200, title=None, xlabel=None, ylabel=None,
-                    qsp=None, b_df=None, bsp=None, ax=None,psiw=1,labels = True,clabels = True,toroidaln = 5,old11=False):
+                    qsp=None, b_df=None, bsp=None, ax=None,psiw=1,labels = True,clabels = True,toroidaln = None,fullf=False):
     if ax is None:
         ax = plt.gca()  # Use the current axis if none is provided
     if dpsi is not None:
@@ -168,7 +186,7 @@ def plotfluxsurface(x, xdiv, y, ydiv, d1, psi=None, dpsi=None, theta=None, dthet
 
     # Plot within the given axis
     
-    p2d = plot2d(x, xdiv, y, ydiv, df1, scalefactor=scalefactor, ratio=ratio, psiw = psiw,kept=kept, nbins=nbins, ax=ax,labels = labels,clabels = clabels,old11=old11)
+    p2d = plot2d(x, xdiv, y, ydiv, df1, scalefactor=scalefactor, ratio=ratio, psiw = psiw,kept=kept, nbins=nbins, ax=ax,labels = labels,clabels = clabels,fullf=fullf)
 
 
     if qsp is not None:
@@ -183,11 +201,20 @@ def plotfluxsurface(x, xdiv, y, ydiv, d1, psi=None, dpsi=None, theta=None, dthet
     if b_df is not None:
         b_plot=b_contour(b_df, ax=ax)
     if bsp is not None:
+        if toroidaln is None:
+            raise ValueError(
+                "toroidaln must be set when bsp is provided "
+                "(use nfp from read_spdata, e.g. toroidaln=nfp)"
+            )
         b_plot=sp.contour_sp(bsp, toroidaln,psi = psi,zeta = zeta,psiw=psiw, ax=ax,labels = clabels,contour_levels = 10,linewidth = 2)
     if labels:
-        ax.set_title(f'$\\psi_n$ = {psi} $\\Theta$ = {theta} $\\zeta$ = {zeta}')
+        ax.set_title(r'$\psi_n$ = ' + str(psi) + r' $\Theta$ = ' + str(theta) + r' $\zeta$ = ' + str(zeta))
         if title is not None:
             ax.set_title(title,fontsize = 24)
+        if xlabel is None:
+            xlabel = _flux_axis_label(x)
+        if ylabel is None:
+            ylabel = _flux_axis_label(y)
         if xlabel is not None:
             ax.set_xlabel(xlabel,fontsize = 15)
         if ylabel is not None:
@@ -196,7 +223,7 @@ def plotfluxsurface(x, xdiv, y, ydiv, d1, psi=None, dpsi=None, theta=None, dthet
     
         if x == 'lambda_i':
             ax.set_xlim(0, 1.5)
-            ax.set_xlabel('$\\lambda = \\mu/E$',fontsize = 15)
+            ax.set_xlabel(r'$\lambda = \mu/E$',fontsize = 15)
 
     if bsp is not None:
         return p2d,b_plot
@@ -205,12 +232,18 @@ def plotfluxsurface(x, xdiv, y, ydiv, d1, psi=None, dpsi=None, theta=None, dthet
 
 def plotfluxsurface_m(x, xdiv, y, ydiv, dfs, psi=None, dpsi=None, theta=None, dtheta=None, zeta=None, dzeta=None,
                       E=None, dE=None, lamb=None, dlamb=None, scalefactor=1, ratio=1, kept=0, nbins=200, titles=None,
-                      xlabel=None, ylabel=None, qsp=None, b_df=None, bsp=None, psiw=1,fontsize = 20,x_lim = None,old11=False):
+                      xlabel=None, ylabel=None, qsp=None, b_df=None, bsp=None, psiw=1, toroidaln=None,
+                      fontsize = 20,x_lim = None,fullf=False):
     plots = len(dfs)
     if isinstance(psi, (list, tuple, np.ndarray)):
         rows = len(psi)
     else:
         rows = 1
+
+    if xlabel is None:
+        xlabel = _flux_axis_label(x)
+    if ylabel is None:
+        ylabel = _flux_axis_label(y)
 
     # Create a GridSpec layout with extra space for colorbars
     fig = plt.figure(figsize=(8 * plots + 3, 6 * rows))
@@ -232,11 +265,11 @@ def plotfluxsurface_m(x, xdiv, y, ydiv, dfs, psi=None, dpsi=None, theta=None, dt
     mappable_b_contour = None
 
     if (ratio ==1):
-        clabel ='$\\Delta n/n$'
+        clabel = r'$\Delta n/n$'
     elif (ratio ==2):
         clabel = 'n'
     elif (ratio ==3):
-        clabel = '$\\Delta n$ of confined particles'
+        clabel = r'$\Delta n$ of confined particles'
     else:
         clabel = ''
     
@@ -251,17 +284,19 @@ def plotfluxsurface_m(x, xdiv, y, ydiv, dfs, psi=None, dpsi=None, theta=None, dt
             mappable_plot2d,mappable_b_contour = plotfluxsurface(
                 x, xdiv, y, ydiv, df, current_psi, dpsi, theta, dtheta, zeta, dzeta, E, dE, lamb, dlamb,
                 scalefactor, ratio, kept, nbins, title, xlabel, ylabel,
-                qsp, b_df, bsp = bsp, ax=ax, psiw=psiw, labels=False, clabels=False,old11=old11
+                qsp, b_df, bsp = bsp, ax=ax, psiw=psiw, labels=False, clabels=False,
+                toroidaln=toroidaln, fullf=fullf
             )
             
             if x_lim is not None:
                 ax.set_xlim(x_lim[0],x_lim[1])
             # Add y-axis labels and ticks only to the leftmost column
             if col_idx == 0:
-                if isinstance(psi, (list, tuple, np.ndarray)):
-                    ax.set_ylabel(' $\\psi$ = '+str(psi[row_idx])+'\n\n'+ylabel, fontsize=fontsize)
-                else:
-                    ax.set_ylabel(ylabel,fontsize=fontsize)
+                if ylabel is not None:
+                    if isinstance(psi, (list, tuple, np.ndarray)):
+                        ax.set_ylabel(r' $\psi$ = '+str(psi[row_idx])+'\n\n'+ylabel, fontsize=fontsize)
+                    else:
+                        ax.set_ylabel(ylabel,fontsize=fontsize)
                 ax.tick_params(axis='y', which='both')
                 yticks = np.linspace(ax.get_ylim()[0], ax.get_ylim()[1], num=5)
                 ax.set_yticks(yticks)
@@ -277,7 +312,7 @@ def plotfluxsurface_m(x, xdiv, y, ydiv, dfs, psi=None, dpsi=None, theta=None, dt
             if row_idx ==0:
                 ax.set_title(title,fontsize = fontsize)
             # Add x-axis labels and ticks only to the bottom row
-            if row_idx == rows - 1:
+            if row_idx == rows - 1 and xlabel is not None:
                 ax.set_xlabel(xlabel, fontsize=fontsize)
                 ax.tick_params(axis='x', which='both')
                 xticks = np.linspace(ax.get_xlim()[0], ax.get_xlim()[1], num=5) 
@@ -346,6 +381,7 @@ def plot_ratio1d(x,xdiv,binnum,d1,label='',scalefactor = 1,kept=0,ratio =1,psiw=
     # Plot the ratio
     if x == 'psi_i' or x =='psi_f':
         plt.plot(bin_centers/psiw, ratio_1, linestyle='-',label = label,lw=lw)
+        plt.xlim(0,1)
     else:
         plt.plot(bin_centers, ratio_1, linestyle='-',label = label,lw=lw)
     plt.legend()

@@ -15,7 +15,7 @@ import numpy as np
 import math
 import spline as sp
 
-def read_spdata(fname,noaxis=1,ndim=9):
+def read_spdata(case_path,fname='/spdata.dat',noaxis=1,ndim=9):
     """
     # read spdata.dat for stellarator 
     
@@ -39,6 +39,7 @@ def read_spdata(fname,noaxis=1,ndim=9):
     gpsi -> ((3,lsp))
     ntor -> (ndim_total)
     """
+    fname = case_path + fname
     with open(fname, 'r') as file:
         line_count = 0
         valid = 1
@@ -308,7 +309,7 @@ class Stellarator:
             self.splines[label] = {
                 'function': spline_fn
             }
-        print('Spline functions for r, q, g, c, $\psi_t$ constructed')
+        print(r'Spline functions for r, q, g, c, $\psi_t$ constructed')
      
 
     def get_spline_function(self, label):
