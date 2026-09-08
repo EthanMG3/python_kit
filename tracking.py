@@ -21,9 +21,9 @@ import glob
 import plotly.graph_objects as go
 
 # Definitions, Run first!
-def read1(directory,pattern='TRACKI.*'): 
+def read1(case_path,pattern='TRACKI.*'): 
     """
-    (out1,nparticles)=read1(directory,'TRACKI.*',0)
+    (out1,nparticles)=read1(case_path,'TRACKI.*',0)
     # read1: track_particles=1 -> Track a set of particles (or all in poincare)
     # return(out1, nparticles)
     # out1[part tracking number, time, i]
@@ -38,6 +38,7 @@ def read1(directory,pattern='TRACKI.*'):
     !> 7: weight
     !> 8: time
     """
+    directory = case_path + "/trackp_dir"
     search_pattern = f"{directory}/{pattern}"
     files = glob.glob(search_pattern)
     sorted_files = sorted(files)
@@ -101,7 +102,7 @@ def read1(directory,pattern='TRACKI.*'):
     return(out1,nparticles)
 
 # Definitions, Run first!
-def read2(directory,pattern='TRACKI.*',ndstep=0): 
+def read2(case_path,pattern='TRACKI.*',ndstep=0): 
     """
     (out1,nparticles)=read2(directory,'TRACKI.*',0)
     # read2: track_particles=2 -> Track a set of particles (or all in poincare)
@@ -123,6 +124,7 @@ def read2(directory,pattern='TRACKI.*',ndstep=0):
 
     # return(trackp)
     """
+    directory = case_path + "/trackp_dir"
     search_pattern = f"{directory}/{pattern}"
     files = glob.glob(search_pattern)
     sorted_files = sorted(files)

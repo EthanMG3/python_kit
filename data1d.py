@@ -350,14 +350,17 @@ def gammaOmega2(s2, tstep=1, dpsi=1, ymin=0, ymax=4, savefig=0):
 
 def compare_profile_vs_time(case_paths, ndstep,ndstart = 0, diagnostic=4, species=0,
                      psi_trim_low = 0, psi_trim_high = 5, title=None, figsize_per_row=4, dpi=120,
-                     shared_colorbar=True,fontsize=20, tstep = 0.00025,levels = 40):
+                     shared_colorbar=True,fontsize=20, tstep = 0.00025,levels = 40, psi=0.5):
     """Compare radial profile evolution across multiple runs.
 
     case_paths : list of str  — directories containing data1d.out / gtc.out0
     ndstep     : int          — number of timesteps to read
-    particletype : int        — index into mpdata1d dimension (0=number, 1=energy, 2=momentum, …)
+    diagnostic : int          — index into mpdata1d dimension (0=number, 1=energy, 2=momentum, …)
     species    : int          — 0=ion, 1=EP, 2=electron
-    psi_trim   : int          — number of edge grid points to trim on each side
+    psi_trim_low, psi_trim_high : int — number of radial points to trim
+    psi        : float        — normalized poloidal-flux location (psi/psi_ped)
+                                at which f(psi,t) is plotted. Each run is
+                                linearly interpolated from its own radial grid.
     title      : list of str or None  — subplot titles (one per case_path)
     shared_colorbar : bool    — if True, all subplots share the same vmin/vmax
     """
@@ -378,6 +381,10 @@ def compare_profile_vs_time(case_paths, ndstep,ndstart = 0, diagnostic=4, specie
     kind_label = kind_names[species] if species < len(kind_names) else f'kind {species}'
     ptype_label = ptype_names[diagnostic] if diagnostic < len(ptype_names) else f'data index {diagnostic}'
 
+    psi = float(psi)
+    if not np.isfinite(psi):
+        raise ValueError("psi must be finite")
+
     n = len(case_paths)
     if title is None:
         title = [f'{kind_label} {ptype_label}'] * n
@@ -385,6 +392,7 @@ def compare_profile_vs_time(case_paths, ndstep,ndstart = 0, diagnostic=4, specie
     # First pass: read data and find global vmin/vmax
     datasets = []
     radial_grids = []
+    psi_grids = []
     global_vmin = float('inf')
     global_vmax = float('-inf')
     for case_path in case_paths:
@@ -399,7 +407,31 @@ def compare_profile_vs_time(case_paths, ndstep,ndstart = 0, diagnostic=4, specie
         plot_data = selected_data[
             ndstart:, psi_trim_low+1:-(2+psi_trim_high), diagnostic]
         (physical_parameters,radial_grid,radial_profile)=gtc.read(case_path+"/gtc.out0")
-        radial_grids.append(radial_grid)
+        radial_slice = slice(psi_trim_low, -(1+psi_trim_high))
+        radial_coordinates = radial_grid[radial_slice, 1]
+        psi_coordinates = radial_grid[radial_slice, 2]
+        if plot_data.shape[1] != radial_coordinates.size:
+            raise ValueError(
+                f"Radial-grid mismatch for '{case_path}': data1d has "
+                f"{plot_data.shape[1]} retained points but gtc.out0 has "
+                f"{radial_coordinates.size}"
+            )
+        if psi_coordinates.size < 2 or not np.all(np.isfinite(psi_coordinates)):
+            raise ValueError(
+                f"Need at least two finite radial-grid points for '{case_path}'"
+            )
+        if not np.all(np.diff(psi_coordinates) > 0.0):
+            raise ValueError(
+                f"psi/psi_ped grid must be strictly increasing for '{case_path}'"
+            )
+        if psi < psi_coordinates[0] or psi > psi_coordinates[-1]:
+            raise ValueError(
+                f"Requested psi/psi_ped={psi:g} is outside the retained "
+                f"range [{psi_coordinates[0]:g}, {psi_coordinates[-1]:g}] "
+                f"for '{case_path}'"
+            )
+        radial_grids.append(radial_coordinates)
+        psi_grids.append(psi_coordinates)
         datasets.append(plot_data)
         if shared_colorbar:
             global_vmin = min(global_vmin, plot_data.min())
@@ -418,9 +450,12 @@ def compare_profile_vs_time(case_paths, ndstep,ndstart = 0, diagnostic=4, specie
     for i, plot_data in enumerate(datasets):
         ax = axes[0, i]
         cf = ax.contourf(
-            radial_grids[i][psi_trim_low:-(1+psi_trim_high),1],
-            np.arange(ndstep-ndstart)*tstep, plot_data,
+            radial_grids[i], np.arange(plot_data.shape[0])*tstep, plot_data,
             cmap='jet', **contour_kw)
+        evaluation_radius = np.interp(psi, psi_grids[i], radial_grids[i])
+        ax.axvline(
+            evaluation_radius, color='white', linestyle='--', linewidth=2.0
+        )
         ax.set(xlabel='$r/a$', ylabel='t $R_0/C_s$', title=title[i])
         ax.xaxis.label.set_fontsize(fontsize)
         ax.yaxis.label.set_fontsize(fontsize)
@@ -431,11 +466,45 @@ def compare_profile_vs_time(case_paths, ndstep,ndstart = 0, diagnostic=4, specie
     fig.tight_layout()
     plt.show()
 
+    profile_fig, profile_ax = plt.subplots(figsize=(8, 6), dpi=dpi)
     for i, plot_data in enumerate(datasets):
-        plt.plot(radial_grids[i][psi_trim_low:-(1+psi_trim_high),1],plot_data[-1,:],label=title[i])
-    plt.legend(fontsize=fontsize)
-    plt.xlabel('r/a',fontsize=fontsize)
+        profile_ax.plot(radial_grids[i], plot_data[-1, :], label=title[i])
+    profile_ax.legend(fontsize=fontsize)
+    profile_ax.set_xlabel('r/a', fontsize=fontsize)
     ylabel = 'Er kV/m' if diagnostic == 4 else ptype_label
-    plt.ylabel(ylabel,fontsize=fontsize)
+    profile_ax.set_ylabel(ylabel, fontsize=fontsize)
+    profile_fig.tight_layout()
+    plt.title('Radial profile at last timestep', fontsize=fontsize)
     plt.show()
+
+    profile_fig, profile_ax = plt.subplots(figsize=(8, 6), dpi=dpi)
+    first_step_for_average = int((ndstep-ndstart)/2)
+    for i, plot_data in enumerate(datasets):
+        profile_ax.plot(radial_grids[i], np.average(plot_data[first_step_for_average:, :], axis=0), label=title[i])
+    profile_ax.legend(fontsize=fontsize)
+    profile_ax.set_xlabel('r/a', fontsize=fontsize)
+    ylabel = 'Er kV/m' if diagnostic == 4 else ptype_label
+    profile_ax.set_ylabel(ylabel, fontsize=fontsize)
+    profile_fig.tight_layout()
+    plt.title('Average radial profile', fontsize=fontsize)
+    plt.show()
+
+    time_fig, time_ax = plt.subplots(figsize=(8, 6), dpi=dpi)
+    for i, plot_data in enumerate(datasets):
+        time_trace = np.array([
+            np.interp(psi, psi_grids[i], radial_profile)
+            for radial_profile in plot_data
+        ])
+        time_ax.plot(
+            np.arange(plot_data.shape[0])*tstep, time_trace, label=title[i]
+        )
+    time_ax.legend(fontsize=fontsize)
+    time_ax.set_xlabel('t $R_0/C_s$', fontsize=fontsize)
+    time_ax.set_ylabel(ylabel, fontsize=fontsize)
+    time_ax.set_title(
+        rf'time plot at $\psi/\psi_{{ped}}={psi:g}$', fontsize=fontsize
+    )
+    time_fig.tight_layout()
+    plt.show()
+
     return fig,plt

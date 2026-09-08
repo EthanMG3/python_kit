@@ -147,6 +147,7 @@ def read(fname,kind=0):
 def poloishow(poloidata, kind = 0, savefig = 0):
     """
     show poloidal cross section
+    R and Z use equal physical scales without changing the data limits.
     # kind =
         0: plot phi & apara & dene (default)
         1: phi, 2: apara, 3: dene
@@ -168,23 +169,28 @@ def poloishow(poloidata, kind = 0, savefig = 0):
         sub[1].set(xlabel='R', ylabel='Z',title='apara')
         figdene = sub[2].contourf(x, y, dene, levels, cmap = 'jet')
         sub[2].set(xlabel='R', ylabel='Z',title='dene')
+        for ax in sub:
+            ax.set_aspect('equal', adjustable='box')
     elif kind==1:
         phi = poloidata[:,:,0]
         fig, ax= plt.subplots(figsize=(5.2,4), dpi = 120)
         figphi = ax.contourf(x,y,phi,levels,cmap='jet')
         ax.set(xlabel='R', ylabel='Z',title='phi')
+        ax.set_aspect('equal', adjustable='box')
         fig.colorbar(figphi)
     elif kind==2:
         apara = poloidata[:,:,1]
         fig, ax= plt.subplots(figsize=(5.2,4), dpi = 120)
         figapara = ax.contourf(x,y,apara,levels,cmap='jet')
         ax.set(xlabel='R', ylabel='Z',title='apara')
+        ax.set_aspect('equal', adjustable='box')
         fig.colorbar(figapara)
     elif kind==3:
         dene = poloidata[:,:,2]
         fig, ax= plt.subplots(figsize=(5.2,4), dpi = 120)
         figdene = ax.contourf(x,y,dene,levels,cmap='jet')
         ax.set(xlabel='R', ylabel='Z',title='dene')
+        ax.set_aspect('equal', adjustable='box')
         fig.colorbar(figdene)
         
     if savefig:
